@@ -1,7 +1,10 @@
 package ru.sakhapov.demo.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import java.time.Instant;
 
 @Builder
 @NoArgsConstructor
@@ -17,4 +20,7 @@ public class UserDto {
     String email;
 
     int age;
+
+    @JsonProperty("created_at")
+    Instant createdAt;
 }

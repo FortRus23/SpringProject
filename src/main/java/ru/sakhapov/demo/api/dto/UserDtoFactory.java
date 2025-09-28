@@ -10,6 +10,7 @@ public class UserDtoFactory {
                 .name(user.getName())
                 .email(user.getEmail())
                 .age(user.getAge())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

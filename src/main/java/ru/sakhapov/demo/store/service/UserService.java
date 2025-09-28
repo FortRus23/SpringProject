@@ -2,6 +2,7 @@ package ru.sakhapov.demo.store.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.dto.UserDtoFactory;
@@ -24,23 +25,20 @@ public class UserService {
     UserRepository userRepository;
 
     public UserDto getUserById(Long id) {
-        User user = userRepository.findById(id)
+        return userRepository.findById(id).map(UserDtoFactory::makeUserDto)
                 .orElseThrow(() -> new UserNotFoundException(id));
-
-        return UserDtoFactory.makeUserDto(user);
     }
 
     public List<UserDto> getUsers() {
-        List<User> users = userRepository.findAll();
-
-        return users.stream().map(UserDtoFactory::makeUserDto).toList();
+        return userRepository.findAll()
+                .stream()
+                .map(UserDtoFactory::makeUserDto)
+                .toList();
     }
 
     public void createUser(UserDto userDto) {
-        if (userDto.getEmail() != null) {
-            if(userRepository.existsByEmail(userDto.getEmail())){
-                throw new EmailAlreadyExistsException(userDto.getEmail());
-            }
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            throw new EmailAlreadyExistsException(userDto.getEmail());
         }
 
         if(userDto.getAge() < 0) {
@@ -61,25 +59,32 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
-        if (userDto.getEmail() != null) {
-            if(userRepository.existsByEmail(userDto.getEmail())){
-                throw new EmailAlreadyExistsException("Email already exists");
-            } else if (userDto.getAge() < 0) {
-                throw new AgeMustBePositiveException();
-            }
+        if (userDto.getAge() < 0) {
+            throw new AgeMustBePositiveException();
         }
 
-        user.setName(userDto.getName());
-        user.setEmail(userDto.getEmail());
-        user.setAge(userDto.getAge());
+        if (userDto.getEmail() != null && !userDto.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(userDto.getEmail())) {
+                throw new EmailAlreadyExistsException(userDto.getEmail());
+            }
+            user.setEmail(userDto.getEmail());
+        }
+
+        if (userDto.getName() != null) {
+            user.setName(userDto.getName());
+        }
+
+        if (userDto.getAge() > 0) {
+            user.setAge(userDto.getAge());
+        }
 
         userRepository.save(user);
     }
 
     public void deleteUserById(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new UserNotFoundException(id);
-        }
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        userRepository.delete(user);
     }
 }
