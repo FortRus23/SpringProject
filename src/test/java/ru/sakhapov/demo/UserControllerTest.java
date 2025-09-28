@@ -12,6 +12,7 @@ import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.exception.UserNotFoundException;
 import ru.sakhapov.demo.store.service.UserService;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -33,9 +34,11 @@ public class UserControllerTest {
     @MockBean
     private UserService userService;
 
+    private static final Instant INSTANT = Instant.parse("2025-09-28T10:00:00Z");
+
     @Test
     void shouldReturnUserDto_whenUserExists() throws Exception {
-        UserDto userDto = new UserDto(1L, "Test", "test@example.com", 25);
+        UserDto userDto = new UserDto(1L, "Test", "test@example.com", 25, INSTANT);
         when(userService.getUserById(1L)).thenReturn(userDto);
 
         mockMvc.perform(get("/api/users/1"))
@@ -43,7 +46,9 @@ public class UserControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test"))
                 .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.age").value(25));
+                .andExpect(jsonPath("$.age").value(25))
+                .andExpect(jsonPath("$.created_at").value(INSTANT.toString()));
+
     }
 
     @Test
@@ -52,7 +57,7 @@ public class UserControllerTest {
                 .thenThrow(new UserNotFoundException(99L));
 
         mockMvc.perform(get("/api/users/99"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("User not found"))
                 .andExpect(jsonPath("$.error_description")
                         .value("Account with this id '99' not found."));
@@ -61,8 +66,8 @@ public class UserControllerTest {
     @Test
     void getUsers_shouldReturnList() throws Exception {
         List<UserDto> users = List.of(
-                new UserDto(1L, "Test", "test@mail.com", 25),
-                new UserDto(2L, "John", "doe@mail.com", 25)
+                new UserDto(1L, "Test", "test@mail.com", 25, INSTANT),
+                new UserDto(2L, "John", "doe@mail.com", 25, INSTANT)
         );
         when(userService.getUsers()).thenReturn(users);
 
@@ -70,12 +75,14 @@ public class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("Test"))
-                .andExpect(jsonPath("$[1].name").value("John"));
+                .andExpect(jsonPath("$[0].created_at").value(INSTANT.toString()))
+                .andExpect(jsonPath("$[1].name").value("John"))
+                .andExpect(jsonPath("$[1].created_at").value(INSTANT.toString()));
     }
 
     @Test
     void shouldReturnTrue_whenUserIsCreated() throws Exception {
-        UserDto request = new UserDto(null, "Test", "test@mail.com", 25);
+        UserDto request = new UserDto(null, "Test", "test@mail.com", 25, null);
         doNothing().when(userService).createUser(any(UserDto.class));
 
         mockMvc.perform(post("/api/users")
@@ -87,7 +94,7 @@ public class UserControllerTest {
 
     @Test
     void shouldReturnTrue_whenUserIsUpdated() throws Exception {
-        UserDto request = new UserDto(null, "Updated", "updated@mail.com", 25);
+        UserDto request = new UserDto(null, "Updated", "updated@mail.com", 25, null);
 
         mockMvc.perform(patch("/api/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
