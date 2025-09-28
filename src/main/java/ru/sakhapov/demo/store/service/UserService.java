@@ -2,7 +2,6 @@ package ru.sakhapov.demo.store.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.dto.UserDtoFactory;
