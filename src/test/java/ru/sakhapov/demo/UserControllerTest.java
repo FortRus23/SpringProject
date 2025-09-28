@@ -1,27 +1,31 @@
 package ru.sakhapov.demo;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.sakhapov.demo.api.UserController;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 import ru.sakhapov.demo.api.dto.UserDto;
-import ru.sakhapov.demo.api.exception.UserNotFoundException;
-import ru.sakhapov.demo.store.service.UserService;
+import ru.sakhapov.demo.api.exception.ErrorDto;
+import ru.sakhapov.demo.store.entity.User;
+import ru.sakhapov.demo.store.repository.UserRepository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(UserController.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
 public class UserControllerTest {
 
 
@@ -31,83 +35,125 @@ public class UserControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
-    private UserService userService;
+    @Autowired
+    private UserRepository userRepository;
 
     private static final Instant INSTANT = Instant.parse("2025-09-28T10:00:00Z");
 
     @Test
     void shouldReturnUserDto_whenUserExists() throws Exception {
-        UserDto userDto = new UserDto(1L, "Test", "test@example.com", 25, INSTANT);
-        when(userService.getUserById(1L)).thenReturn(userDto);
 
-        mockMvc.perform(get("/api/users/1"))
+        User user = new User(null, "Test", "test@example.com", 25, INSTANT);
+        user = userRepository.save(user);
+
+        MvcResult res = mockMvc.perform(get("/api/users/" + user.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Test"))
-                .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.age").value(25))
-                .andExpect(jsonPath("$.created_at").value(INSTANT.toString()));
+                .andReturn();
+
+        UserDto dto = objectMapper.readValue(res.getResponse().getContentAsString(), UserDto.class);
+
+        assertEquals(user.getId(), dto.getId());
+        assertEquals("Test", dto.getName());
+        assertEquals("test@example.com", dto.getEmail());
+        assertEquals(25, dto.getAge());
+        assertEquals(INSTANT, dto.getCreatedAt());
 
     }
 
     @Test
     void shouldReturnNotFoundError_whenUserNotExist() throws Exception {
-        when(userService.getUserById(99L))
-                .thenThrow(new UserNotFoundException(99L));
-
-        mockMvc.perform(get("/api/users/99"))
+        MvcResult result = mockMvc.perform(get("/api/users/999"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("User not found"))
-                .andExpect(jsonPath("$.error_description")
-                        .value("Account with this id '99' not found."));
+                .andReturn();
+
+        ErrorDto error = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                ErrorDto.class
+        );
+
+        assertEquals("User not found", error.getError());
+        assertEquals("Account with this id '999' not found.", error.getErrorDescription());
     }
 
     @Test
     void getUsers_shouldReturnList() throws Exception {
-        List<UserDto> users = List.of(
-                new UserDto(1L, "Test", "test@mail.com", 25, INSTANT),
-                new UserDto(2L, "John", "doe@mail.com", 25, INSTANT)
-        );
-        when(userService.getUsers()).thenReturn(users);
+        userRepository.save(new User(null, "Test", "test@mail.com", 25, INSTANT));
+        userRepository.save(new User(null, "John", "doe@mail.com", 25, INSTANT));
 
-        mockMvc.perform(get("/api/users"))
+        MvcResult res = mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("Test"))
-                .andExpect(jsonPath("$[0].created_at").value(INSTANT.toString()))
-                .andExpect(jsonPath("$[1].name").value("John"))
-                .andExpect(jsonPath("$[1].created_at").value(INSTANT.toString()));
+                .andReturn();
+
+        List<UserDto> users = objectMapper.readValue(
+                res.getResponse().getContentAsString(),
+                new TypeReference<List<UserDto>>() {}
+        );
+
+        assertEquals(2, users.size());
+        assertEquals("Test", users.get(0).getName());
+        assertEquals(INSTANT, users.get(0).getCreatedAt());
+        assertEquals("John", users.get(1).getName());
+        assertEquals(INSTANT, users.get(1).getCreatedAt());
     }
 
     @Test
     void shouldReturnTrue_whenUserIsCreated() throws Exception {
         UserDto request = new UserDto(null, "Test", "test@mail.com", 25, null);
-        doNothing().when(userService).createUser(any(UserDto.class));
 
-        mockMvc.perform(post("/api/users")
+        MvcResult result = mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.answer").value(true));
+                .andReturn();
+
+        Map<String, Boolean> response = objectMapper.readValue(result.getResponse().getContentAsString(),
+                new TypeReference<>() {});
+
+        assertTrue(response.get("answer"));
+
+        assertEquals(1, userRepository.count());
+        User saved = userRepository.findAll().get(0);
+        assertEquals("Test", saved.getName());
+        assertEquals("test@mail.com", saved.getEmail());
     }
 
     @Test
     void shouldReturnTrue_whenUserIsUpdated() throws Exception {
+        User user = userRepository.save(new User(null, "Test", "test@mail.com", 25, INSTANT));
+
         UserDto request = new UserDto(null, "Updated", "updated@mail.com", 25, null);
 
-        mockMvc.perform(patch("/api/users/1")
+        MvcResult result = mockMvc.perform(patch("/api/users/" + user.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.answer").value(true));
+                .andReturn();
+
+        Map<String, Boolean> response = objectMapper.readValue(result.getResponse().getContentAsString(),
+                new TypeReference<>() {});
+
+        assertTrue(response.get("answer"));
+
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertEquals("Updated", updated.getName());
+        assertEquals("updated@mail.com", updated.getEmail());
     }
 
     @Test
-    void shouldReturnTrue_whenUserIsDeleted() throws Exception {
-        mockMvc.perform(delete("/api/users/1"))
+    void shouldReturnTrue_whenUserDeleted() throws Exception {
+        User user = userRepository.save(new User(null, "Delete", "delete@mail.com", 25, INSTANT));
+
+        MvcResult result = mockMvc.perform(delete("/api/users/" + user.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.answer").value(true));
+                .andReturn();
+
+        Map<String, Boolean> response = objectMapper.readValue(result.getResponse().getContentAsString(),
+                new TypeReference<>() {});
+
+        assertTrue(response.get("answer"));
+
+        assertFalse(userRepository.findById(user.getId()).isPresent());
     }
+
 
 }
