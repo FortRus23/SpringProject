@@ -6,14 +6,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.exception.ErrorDto;
 import ru.sakhapov.demo.store.entity.User;
+import ru.sakhapov.demo.store.kafka.KafkaProducer;
 import ru.sakhapov.demo.store.repository.UserRepository;
+import ru.sakhapov.demo.store.service.EmailService;
 
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@ActiveProfiles("test")
 public class UserControllerTest {
 
 
