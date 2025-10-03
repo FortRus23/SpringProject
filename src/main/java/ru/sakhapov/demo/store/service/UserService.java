@@ -5,10 +5,12 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.dto.UserDtoFactory;
+import ru.sakhapov.demo.api.dto.UserEvent;
 import ru.sakhapov.demo.api.exception.AgeMustBePositiveException;
 import ru.sakhapov.demo.api.exception.EmailAlreadyExistsException;
 import ru.sakhapov.demo.api.exception.UserNotFoundException;
 import ru.sakhapov.demo.store.entity.User;
+import ru.sakhapov.demo.store.kafka.KafkaProducer;
 import ru.sakhapov.demo.store.repository.UserRepository;
 
 import java.time.Instant;
@@ -22,6 +24,7 @@ import static lombok.AccessLevel.PRIVATE;
 public class UserService {
 
     UserRepository userRepository;
+    KafkaProducer kafkaProducer;
 
     public UserDto getUserById(Long id) {
         return userRepository.findById(id).map(UserDtoFactory::makeUserDto)
@@ -52,6 +55,8 @@ public class UserService {
                 .build();
 
         userRepository.save(user);
+
+        kafkaProducer.sendEvent(new UserEvent("CREATE", user.getEmail()));
     }
 
     public void updateUserById(Long id, UserDto userDto) {
@@ -81,9 +86,11 @@ public class UserService {
     }
 
     public void deleteUserById(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new UserNotFoundException(id);
-        }
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
         userRepository.deleteById(id);
+
+        kafkaProducer.sendEvent(new UserEvent("DELETE", user.getEmail()));
     }
 }
