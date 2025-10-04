@@ -2,9 +2,9 @@ package ru.sakhapov.demo.store.kafka;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import ru.sakhapov.demo.api.dto.UserEvent;
+import org.springframework.kafka.core.KafkaTemplate;
+import ru.sakhapov.demo.store.entity.UserEvent;
 
 import static lombok.AccessLevel.PRIVATE;
 

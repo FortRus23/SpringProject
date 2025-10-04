@@ -5,11 +5,11 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import ru.sakhapov.demo.api.dto.UserDto;
 import ru.sakhapov.demo.api.dto.UserDtoFactory;
-import ru.sakhapov.demo.api.dto.UserEvent;
 import ru.sakhapov.demo.api.exception.AgeMustBePositiveException;
 import ru.sakhapov.demo.api.exception.EmailAlreadyExistsException;
 import ru.sakhapov.demo.api.exception.UserNotFoundException;
 import ru.sakhapov.demo.store.entity.User;
+import ru.sakhapov.demo.store.entity.UserEvent;
 import ru.sakhapov.demo.store.kafka.KafkaProducer;
 import ru.sakhapov.demo.store.repository.UserRepository;
 

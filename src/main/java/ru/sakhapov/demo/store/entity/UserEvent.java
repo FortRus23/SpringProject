@@ -1,4 +1,4 @@
-package ru.sakhapov.demo.api.dto;
+package ru.sakhapov.demo.store.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
