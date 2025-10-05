@@ -9,7 +9,6 @@ import ru.sakhapov.demo.api.exception.AgeMustBePositiveException;
 import ru.sakhapov.demo.api.exception.EmailAlreadyExistsException;
 import ru.sakhapov.demo.api.exception.UserNotFoundException;
 import ru.sakhapov.demo.store.entity.User;
-import ru.sakhapov.demo.store.entity.UserEvent;
 import ru.sakhapov.demo.store.kafka.KafkaProducer;
 import ru.sakhapov.demo.store.repository.UserRepository;
 
@@ -56,7 +55,7 @@ public class UserService {
 
         userRepository.save(user);
 
-        kafkaProducer.sendEvent(new UserEvent("CREATE", user.getEmail()));
+        kafkaProducer.sendEvent("CREATE", user.getEmail());
     }
 
     public void updateUserById(Long id, UserDto userDto) {
@@ -91,6 +90,6 @@ public class UserService {
 
         userRepository.deleteById(id);
 
-        kafkaProducer.sendEvent(new UserEvent("DELETE", user.getEmail()));
+        kafkaProducer.sendEvent("DELETE", user.getEmail());
     }
 }
